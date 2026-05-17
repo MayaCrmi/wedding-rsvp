@@ -3,8 +3,15 @@ import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
-import { fetchStats } from "../../api/client";
-import type { Stats } from "../../types";
+import { fetchStats, fetchTasksSummary, fetchVendorsSummary } from "../../api/client";
+import type { Stats, TasksSummary, VendorsSummary } from "../../types";
+import { TASK_CATEGORY_ICONS, TASK_CATEGORY_LABELS } from "../../types";
+
+type Tab = "dashboard" | "guests" | "send" | "responses" | "tasks" | "vendors";
+
+interface Props {
+  onNavigate: (tab: Tab) => void;
+}
 
 const STATUS_COLORS = {
   attending:     "#6aaa85",
@@ -12,41 +19,36 @@ const STATUS_COLORS = {
   not_attending: "#c47272",
 };
 
-const GROUP_HE: Record<string, string> = {
-  family:  "משפחה",
-  friends: "חברים",
-  work:    "עבודה",
-  other:   "אחר",
-};
+function formatCurrency(n: number): string {
+  return `₪${n.toLocaleString("he-IL")}`;
+}
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload?.length) {
-    const item = payload[0];
     return (
-      <div style={{
-        background: "white", border: "1px solid #e8d5c8",
-        borderRadius: 8, padding: "8px 14px", fontSize: 13, direction: "rtl",
-      }}>
-        <strong style={{ color: "#5c3d2e" }}>{item.name}</strong>
-        <br />
-        <span>מוזמנים: {item.value}</span>
+      <div style={{ background: "white", border: "1px solid #e8d5c8", borderRadius: 8, padding: "8px 14px", fontSize: 13, direction: "rtl" }}>
+        <strong style={{ color: "#5c3d2e" }}>{payload[0].name}</strong><br />
+        <span>מוזמנים: {payload[0].value}</span>
       </div>
     );
   }
   return null;
 };
 
-export default function Dashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
+export default function Dashboard({ onNavigate }: Props) {
+  const [stats, setStats]     = useState<Stats | null>(null);
+  const [tasks, setTasks]     = useState<TasksSummary | null>(null);
+  const [vendors, setVendors] = useState<VendorsSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
-      const data = await fetchStats();
-      setStats(data);
+      const [s, t, v] = await Promise.all([
+        fetchStats(), fetchTasksSummary(), fetchVendorsSummary(),
+      ]);
+      setStats(s); setTasks(t); setVendors(v);
     } catch {
       setError("שגיאה בטעינת הנתונים. ודא שהשרת פועל.");
     } finally {
@@ -63,16 +65,14 @@ export default function Dashboard() {
     </div>
   );
 
-  if (error || !stats) return (
-    <div className="alert alert-error">{error || "שגיאה לא ידועה"}</div>
-  );
+  if (error) return <div className="alert alert-error">{error}</div>;
 
-  const { totals, by_status, by_side, by_group } = stats;
-
-  const responded = totals.attending_guests + totals.declined_guests;
+  const { totals, by_status, by_side } = stats!;
+  const responded   = totals.attending_guests + totals.declined_guests;
   const responseRate = totals.total_guests > 0
-    ? Math.round((responded / totals.total_guests) * 100)
-    : 0;
+    ? Math.round((responded / totals.total_guests) * 100) : 0;
+  const taskPct = tasks && tasks.total > 0
+    ? Math.round((tasks.done / tasks.total) * 100) : 0;
 
   const pieData = [
     { name: "מגיע/ה",    value: by_status.attending?.count     ?? 0, color: STATUS_COLORS.attending },
@@ -95,96 +95,127 @@ export default function Dashboard() {
     },
   ];
 
-  const groupBar = Object.entries(by_group).map(([grp, statuses]) => ({
-    name:      GROUP_HE[grp] ?? grp,
-    "מגיע":    statuses?.attending?.people     ?? 0,
-    "ממתין":   statuses?.pending?.people       ?? 0,
-    "לא מגיע": statuses?.not_attending?.people ?? 0,
-  }));
-
   return (
     <div>
-      <h2 className="page-title">📊 לוח בקרה</h2>
+      <h2 className="page-title">🏠 לוח בקרה</h2>
 
-      <div className="stat-cards">
-        <div className="stat-card total">
-          <span className="stat-value">{totals.total_guests}</span>
-          <span className="stat-label">סה״כ מוזמנים</span>
+      {/* ── Three hub cards ──────────────────────────────────── */}
+      <div className="hub-grid">
+
+        {/* RSVP hub */}
+        <div className="hub-card" onClick={() => onNavigate("guests")}>
+          <div className="hub-card-icon">💌</div>
+          <div className="hub-card-content">
+            <div className="hub-card-title">מוזמנים</div>
+            <div className="hub-card-stats">
+              <span><strong>{totals.attending_people}</strong> מגיעים</span>
+              <span><strong>{totals.pending_guests}</strong> ממתינים</span>
+              <span><strong>{totals.total_guests}</strong> סה״כ</span>
+            </div>
+            <div className="progress-track" style={{ marginTop: 8 }}>
+              <div className="progress-fill" style={{ width: `${responseRate}%` }} />
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>
+              {responseRate}% ענו
+            </div>
+          </div>
+          <div className="hub-card-arrow">←</div>
         </div>
-        <div className="stat-card people">
-          <span className="stat-value">{totals.total_people}</span>
-          <span className="stat-label">סה״כ אנשים (כולל נלווים)</span>
+
+        {/* Tasks hub */}
+        <div className="hub-card" onClick={() => onNavigate("tasks")}>
+          <div className="hub-card-icon">📋</div>
+          <div className="hub-card-content">
+            <div className="hub-card-title">משימות</div>
+            <div className="hub-card-stats">
+              <span><strong>{tasks?.done ?? 0}</strong> הושלמו</span>
+              <span><strong>{tasks?.remaining ?? 0}</strong> נותרו</span>
+              <span><strong>{tasks?.total ?? 0}</strong> סה״כ</span>
+            </div>
+            <div className="progress-track" style={{ marginTop: 8 }}>
+              <div className="progress-fill" style={{ width: `${taskPct}%`, background: "linear-gradient(90deg,#6aaa85,#3d8f65)" }} />
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>
+              {taskPct}% הושלמו
+            </div>
+          </div>
+          <div className="hub-card-arrow">←</div>
         </div>
-        <div className="stat-card attending">
-          <span className="stat-value">{totals.attending_people}</span>
-          <span className="stat-label">אנשים מגיעים</span>
-        </div>
-        <div className="stat-card pending">
-          <span className="stat-value">{totals.pending_guests}</span>
-          <span className="stat-label">ממתינים לתשובה</span>
-        </div>
-        <div className="stat-card declined">
-          <span className="stat-value">{totals.declined_guests}</span>
-          <span className="stat-label">לא מגיעים</span>
+
+        {/* Vendors hub */}
+        <div className="hub-card" onClick={() => onNavigate("vendors")}>
+          <div className="hub-card-icon">🤝</div>
+          <div className="hub-card-content">
+            <div className="hub-card-title">ספקים</div>
+            <div className="hub-card-stats">
+              <span><strong>{vendors?.booked ?? 0}</strong> מוזמנים</span>
+              <span><strong>{vendors?.total ?? 0}</strong> סה״כ</span>
+              <span>{formatCurrency(vendors?.total_budget ?? 0)} תקציב</span>
+            </div>
+            <div style={{ marginTop: 8, fontSize: "0.8rem" }}>
+              {(vendors?.deposits_outstanding ?? 0) > 0 ? (
+                <span className="badge badge-pending" style={{ fontSize: "0.72rem" }}>
+                  {formatCurrency(vendors!.deposits_outstanding)} מקדמות שנותרו
+                </span>
+              ) : (
+                <span className="badge badge-attending" style={{ fontSize: "0.72rem" }}>
+                  כל המקדמות שולמו ✓
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="hub-card-arrow">←</div>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-          <span className="card-title" style={{ marginBottom: 0 }}>🕊️ אחוז מענה</span>
-          <span style={{ fontSize: "1.3rem", fontWeight: 700, color: "var(--deep)" }}>
-            {responseRate}%
-          </span>
+      {/* ── Upcoming tasks ────────────────────────────────────── */}
+      {tasks && tasks.upcoming.length > 0 && (
+        <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <div className="card-title">⏰ המשימות הדחופות הבאות</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {tasks.upcoming.map((t) => (
+              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "0.5rem 0.75rem", background: "var(--rose-gold-pale)", borderRadius: "var(--radius-sm)" }}>
+                <span style={{ fontSize: "1.2rem" }}>{TASK_CATEGORY_ICONS[t.category]}</span>
+                <span style={{ flex: 1, fontWeight: 500 }}>{t.title}</span>
+                <span className={`badge ${t.priority === "high" ? "badge-declined" : t.priority === "medium" ? "badge-pending" : "badge-family"}`} style={{ fontSize: "0.7rem" }}>
+                  {t.priority === "high" ? "דחוף" : t.priority === "medium" ? "בינוני" : "נמוך"}
+                </span>
+                <span className="badge badge-other" style={{ fontSize: "0.7rem" }}>
+                  {TASK_CATEGORY_LABELS[t.category]}
+                </span>
+              </div>
+            ))}
+          </div>
+          <button className="btn btn-outline" style={{ marginTop: "0.75rem" }} onClick={() => onNavigate("tasks")}>
+            לכל המשימות ←
+          </button>
         </div>
-        <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${responseRate}%` }} />
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-          <span>ענו: {responded} מוזמנים</span>
-          <span>נשלחו הזמנות: {totals.invited_count}</span>
-          <span>מספרים לא תקינים: {totals.invalid_phones}</span>
-        </div>
-      </div>
+      )}
 
+      {/* ── RSVP charts ──────────────────────────────────────── */}
       <div className="charts-grid">
         <div className="card">
           <div className="card-title">💌 פילוח לפי סטטוס</div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={240}>
             <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={65}
-                outerRadius={100}
-                paddingAngle={3}
-                dataKey="value"
-              >
-                {pieData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
+              <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
+                paddingAngle={3} dataKey="value">
+                {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
-              <Legend
-                formatter={(value) => (
-                  <span style={{ fontSize: 13, color: "var(--text)", direction: "rtl" }}>{value}</span>
-                )}
-              />
+              <Legend formatter={(v) => <span style={{ fontSize: 13, color: "var(--text)" }}>{v}</span>} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
         <div className="card">
           <div className="card-title">🌸 כלה מול חתן (אנשים)</div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={sideBar} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0e8e0" />
               <XAxis dataKey="name" tick={{ fontSize: 13 }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{ direction: "rtl", fontSize: 13 }}
-                cursor={{ fill: "rgba(201,149,108,0.1)" }}
-              />
+              <Tooltip contentStyle={{ direction: "rtl", fontSize: 13 }} cursor={{ fill: "rgba(201,149,108,0.1)" }} />
               <Legend formatter={(v) => <span style={{ fontSize: 13 }}>{v}</span>} />
               <Bar dataKey="מגיע"    fill="#6aaa85" radius={[4, 4, 0, 0]} />
               <Bar dataKey="ממתין"   fill="#d4a843" radius={[4, 4, 0, 0]} />
@@ -192,25 +223,6 @@ export default function Dashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      <div className="card">
-        <div className="card-title">👥 פילוח לפי קבוצה (אנשים)</div>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={groupBar} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0e8e0" />
-            <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-            <Tooltip
-              contentStyle={{ direction: "rtl", fontSize: 13 }}
-              cursor={{ fill: "rgba(201,149,108,0.1)" }}
-            />
-            <Legend formatter={(v) => <span style={{ fontSize: 13 }}>{v}</span>} />
-            <Bar dataKey="מגיע"    fill="#6aaa85" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="ממתין"   fill="#d4a843" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="לא מגיע" fill="#c47272" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
       </div>
 
       <button onClick={load} className="btn btn-outline" style={{ marginTop: "1.25rem" }}>

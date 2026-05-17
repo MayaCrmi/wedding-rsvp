@@ -5,6 +5,8 @@ from models import init_db
 from routes.guests import guests_bp
 from routes.messages import messages_bp
 from routes.stats import stats_bp
+from routes.tasks import tasks_bp
+from routes.vendors import vendors_bp
 
 
 def create_app():
@@ -13,9 +15,11 @@ def create_app():
 
     init_db()
 
-    app.register_blueprint(guests_bp, url_prefix="/api/guests")
+    app.register_blueprint(guests_bp,   url_prefix="/api/guests")
     app.register_blueprint(messages_bp, url_prefix="/api/messages")
-    app.register_blueprint(stats_bp, url_prefix="/api/stats")
+    app.register_blueprint(stats_bp,    url_prefix="/api/stats")
+    app.register_blueprint(tasks_bp,    url_prefix="/api/tasks")
+    app.register_blueprint(vendors_bp,  url_prefix="/api/vendors")
 
     return app
 
