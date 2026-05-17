@@ -103,6 +103,43 @@ h1, h2, h3 {
   opacity: 0.7;
 }
 
+/* ── Sub-tab navigation (RSVP dropdown bar) ────────────────── */
+.sub-tab-nav {
+  background: var(--deep);
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  padding: 0 2rem;
+}
+
+.sub-tab-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.65rem 1.4rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(232, 197, 168, 0.75);
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+
+.sub-tab-btn:hover {
+  color: var(--rose-gold-light);
+  background: rgba(255,255,255,0.06);
+}
+
+.sub-tab-btn.active {
+  color: var(--rose-gold-light);
+  border-bottom-color: var(--rose-gold);
+  font-weight: 600;
+}
+
 /* ── Tab Navigation ────────────────────────────────────────── */
 .tab-nav {
   background: var(--white);

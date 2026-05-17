@@ -7,10 +7,10 @@ import { fetchStats, fetchTasksSummary, fetchVendorsSummary } from "../../api/cl
 import type { Stats, TasksSummary, VendorsSummary } from "../../types";
 import { TASK_CATEGORY_ICONS, TASK_CATEGORY_LABELS } from "../../types";
 
-type Tab = "dashboard" | "guests" | "send" | "responses" | "tasks" | "vendors";
+type RsvpSubTab = "dashboard" | "guests" | "send" | "responses";
 
 interface Props {
-  onNavigate: (tab: Tab) => void;
+  onNavigate: (tab: RsvpSubTab) => void;
 }
 
 const STATUS_COLORS = {
@@ -122,8 +122,8 @@ export default function Dashboard({ onNavigate }: Props) {
           <div className="hub-card-arrow">←</div>
         </div>
 
-        {/* Tasks hub */}
-        <div className="hub-card" onClick={() => onNavigate("tasks")}>
+        {/* Tasks hub — informational only, navigation via main tabs */}
+        <div className="hub-card" style={{ cursor: "default" }}>
           <div className="hub-card-icon">📋</div>
           <div className="hub-card-content">
             <div className="hub-card-title">משימות</div>
@@ -139,11 +139,10 @@ export default function Dashboard({ onNavigate }: Props) {
               {taskPct}% הושלמו
             </div>
           </div>
-          <div className="hub-card-arrow">←</div>
         </div>
 
-        {/* Vendors hub */}
-        <div className="hub-card" onClick={() => onNavigate("vendors")}>
+        {/* Vendors hub — informational only, navigation via main tabs */}
+        <div className="hub-card" style={{ cursor: "default" }}>
           <div className="hub-card-icon">🤝</div>
           <div className="hub-card-content">
             <div className="hub-card-title">ספקים</div>
@@ -164,7 +163,6 @@ export default function Dashboard({ onNavigate }: Props) {
               )}
             </div>
           </div>
-          <div className="hub-card-arrow">←</div>
         </div>
       </div>
 
@@ -186,9 +184,6 @@ export default function Dashboard({ onNavigate }: Props) {
               </div>
             ))}
           </div>
-          <button className="btn btn-outline" style={{ marginTop: "0.75rem" }} onClick={() => onNavigate("tasks")}>
-            לכל המשימות ←
-          </button>
         </div>
       )}
 
