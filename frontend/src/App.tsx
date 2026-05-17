@@ -7,25 +7,25 @@ import Tasks from "./components/Tasks/Tasks";
 import Vendors from "./components/Vendors/Vendors";
 import "./styles/global.css";
 
-type MainTab = "vendors" | "tasks" | "rsvp";
-type RsvpSubTab = "dashboard" | "guests" | "send" | "responses";
+type MainTab = "dashboard" | "vendors" | "tasks" | "rsvp";
+type RsvpSubTab = "guests" | "send" | "responses";
 
 const MAIN_TABS: { id: MainTab; label: string; icon: string }[] = [
-  { id: "vendors", label: "ספקים",  icon: "🤝" },
-  { id: "tasks",   label: "משימות", icon: "📋" },
-  { id: "rsvp",    label: "RSVP",   icon: "💌" },
+  { id: "dashboard", label: "לוח בקרה", icon: "🏠" },
+  { id: "vendors",   label: "ספקים",    icon: "🤝" },
+  { id: "tasks",     label: "משימות",   icon: "📋" },
+  { id: "rsvp",      label: "RSVP",     icon: "💌" },
 ];
 
 const RSVP_SUB_TABS: { id: RsvpSubTab; label: string; icon: string }[] = [
-  { id: "dashboard",  label: "לוח בקרה",       icon: "🏠" },
-  { id: "guests",     label: "רשימת מוזמנים",  icon: "👥" },
-  { id: "send",       label: "שליחת הזמנות",    icon: "✉️" },
-  { id: "responses",  label: "תגובות",          icon: "✅" },
+  { id: "guests",    label: "רשימת מוזמנים",  icon: "👥" },
+  { id: "send",      label: "שליחת הזמנות",   icon: "✉️" },
+  { id: "responses", label: "תגובות",          icon: "✅" },
 ];
 
 export default function App() {
-  const [activeMain, setActiveMain] = useState<MainTab>("vendors");
-  const [activeRsvp, setActiveRsvp] = useState<RsvpSubTab>("dashboard");
+  const [activeMain, setActiveMain] = useState<MainTab>("dashboard");
+  const [activeRsvp, setActiveRsvp] = useState<RsvpSubTab>("guests");
 
   const navigateToRsvp = (sub: RsvpSubTab) => {
     setActiveMain("rsvp");
@@ -73,17 +73,13 @@ export default function App() {
       )}
 
       <main className="tab-content">
+        {activeMain === "dashboard" && (
+          <Dashboard onNavigate={(sub) => navigateToRsvp(sub as RsvpSubTab)} />
+        )}
         {activeMain === "vendors" && <Vendors />}
         {activeMain === "tasks"   && <Tasks />}
         {activeMain === "rsvp" && (
           <>
-            {activeRsvp === "dashboard"  && (
-              <Dashboard onNavigate={(tab) => {
-                if (tab === "guests" || tab === "send" || tab === "responses" || tab === "dashboard") {
-                  navigateToRsvp(tab as RsvpSubTab);
-                }
-              }} />
-            )}
             {activeRsvp === "guests"    && <GuestList />}
             {activeRsvp === "send"      && <SendInvites />}
             {activeRsvp === "responses" && <Responses />}

@@ -7,7 +7,7 @@ import { fetchStats, fetchTasksSummary, fetchVendorsSummary } from "../../api/cl
 import type { Stats, TasksSummary, VendorsSummary } from "../../types";
 import { TASK_CATEGORY_ICONS, TASK_CATEGORY_LABELS } from "../../types";
 
-type RsvpSubTab = "dashboard" | "guests" | "send" | "responses";
+type RsvpSubTab = "guests" | "send" | "responses";
 
 interface Props {
   onNavigate: (tab: RsvpSubTab) => void;
